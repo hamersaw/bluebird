@@ -1,4 +1,37 @@
-pub fn build_oauth_string(consumer_key: String, consumer_secret: String, access_token: String, access_token_secret: String) -> String {
+use rand::{self,Rng};
+use rustc_serialize::base64::{self,ToBase64};
+use time;
+
+pub struct OAuthConfig {
+    consumer_key: String,
+    consumer_secret: String,
+    access_token: String,
+    access_token_secret: String,
+    nonce: String,
+    timestamp: f64,
+}
+
+impl OAuthConfig {
+    pub fn new(consumer_key: String, consumer_secret: String, access_token: String, access_token_secret: String) -> OAuthConfig {
+        OAuthConfig {
+            consumer_key: consumer_key,
+            consumer_secret: consumer_secret,
+            access_token: access_token,
+            access_token_secret: access_token_secret,
+            nonce: generate_nonce(),
+            timestamp: time::precise_time_s(),
+        }
+    }
+}
+
+pub fn generate_nonce() -> String {
+    let mut random = rand::thread_rng();    
+    let mut nonce = [0u8; 32];
+    random.fill_bytes(&mut nonce[..]);
+    nonce.to_base64(base64::STANDARD)
+}
+
+/*pub fn build_oauth_string(consumer_key: String, consumer_secret: String, access_token: String, access_token_secret: String) -> String {
     format!("OAuth \
         oauth_consumer_key=\"{}\", \
         oauth_nonce=\"TODO\", \
@@ -10,29 +43,4 @@ pub fn build_oauth_string(consumer_key: String, consumer_secret: String, access_
         percent_encode(consumer_key),
         percent_encode(access_token),
     )
-}
-
-pub fn percent_encode(string: String) -> String {
-    string.chars().map(|x| {
-        match x {
-            '0'...'9' | 'A'...'Z' | 'a'...'z' | '-' | '.' | '_' | '~' => format!("{}", x),
-            _ => format!("%{:X}", x as u8),
-        }
-    }).collect()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_build_oauth_string() {
-        println!("{}", build_oauth_string("test_key".to_string(), "test_consumer_secret".to_string(), "test_token".to_string(), "test_token_secret".to_string()));
-    }
-
-    #[test]
-    fn test_percent_encode() {
-        assert_eq!(percent_encode("Ladies + Gentleman".to_string()), "Ladies%20%2B%20Gentleman".to_string());
-        assert_eq!(percent_encode("Dogs, Cats, & Mice!".to_string()), "Dogs%2C%20Cats%2C%20%26%20Mice%21".to_string());
-    }
-}
+}*/
