@@ -3,12 +3,12 @@ use rustc_serialize::base64::{self,ToBase64};
 use time;
 
 pub struct OAuthConfig {
-    consumer_key: String,
-    consumer_secret: String,
-    access_token: String,
-    access_token_secret: String,
-    nonce: String,
-    timestamp: f64,
+    pub consumer_key: String,
+    pub consumer_secret: String,
+    pub access_token: String,
+    pub access_token_secret: String,
+    pub nonce: String,
+    pub timestamp: f64,
 }
 
 impl OAuthConfig {
@@ -28,19 +28,12 @@ pub fn generate_nonce() -> String {
     let mut random = rand::thread_rng();    
     let mut nonce = [0u8; 32];
     random.fill_bytes(&mut nonce[..]);
-    nonce.to_base64(base64::STANDARD)
-}
+    let nonce_string = nonce.to_base64(base64::STANDARD);
 
-/*pub fn build_oauth_string(consumer_key: String, consumer_secret: String, access_token: String, access_token_secret: String) -> String {
-    format!("OAuth \
-        oauth_consumer_key=\"{}\", \
-        oauth_nonce=\"TODO\", \
-        oauth_signature=\"TODO\", \
-        oauth_signature_method=\"HMAC-SHA1\", \
-        oauth_timestamp=\"TODO\", \
-        oauth_token=\"{}\", \
-        oauth_version=\"1.0\"", 
-        percent_encode(consumer_key),
-        percent_encode(access_token),
-    )
-}*/
+    nonce_string.chars().map(|x| {
+        match x {
+            '0'...'9' | 'A'...'Z' | 'a'...'z' | '-' | '.' | '_' | '~' => format!("{}", x),
+            _ => "".to_string(),
+        }
+    }).collect()
+}

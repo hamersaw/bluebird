@@ -4,4 +4,6 @@
 Twitter API for rust.
 
 ##TODO
-- ALL OF IT!
+- fix timestamp - number of seconds since epoch
+- send http post
+- send individual tweets through channel
