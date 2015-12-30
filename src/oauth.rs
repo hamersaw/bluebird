@@ -1,5 +1,5 @@
 use rand::{self,Rng};
-use rustc_serialize::base64::{self,ToBase64};
+//use rustc_serialize::base64::{self,ToBase64};
 use time;
 
 pub struct OAuthConfig {
@@ -8,7 +8,7 @@ pub struct OAuthConfig {
     pub access_token: String,
     pub access_token_secret: String,
     pub nonce: String,
-    pub timestamp: f64,
+    pub timestamp: i64,
 }
 
 impl OAuthConfig {
@@ -18,13 +18,14 @@ impl OAuthConfig {
             consumer_secret: consumer_secret,
             access_token: access_token,
             access_token_secret: access_token_secret,
-            nonce: generate_nonce(),
-            timestamp: time::precise_time_s(),
+            //nonce: generate_nonce(),
+            nonce: rand::thread_rng().gen_ascii_chars().take(32).collect::<String>(),
+            timestamp: time::now_utc().to_timespec().sec,
         }
     }
 }
 
-pub fn generate_nonce() -> String {
+/*pub fn generate_nonce() -> String {
     let mut random = rand::thread_rng();    
     let mut nonce = [0u8; 32];
     random.fill_bytes(&mut nonce[..]);
@@ -36,4 +37,4 @@ pub fn generate_nonce() -> String {
             _ => "".to_string(),
         }
     }).collect()
-}
+}*/

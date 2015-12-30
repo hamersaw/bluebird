@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::sync::mpsc::{channel,Receiver};
+use std::thread;
 
 use oauth::OAuthConfig;
 use percent_encode;
@@ -8,6 +9,7 @@ use crypto::digest::Digest;
 use crypto::hmac::Hmac;
 use crypto::mac::Mac;
 use crypto::sha1::Sha1;
+use curl::http;
 use rustc_serialize::base64::{self,ToBase64};
 
 pub struct FilterStreamConfig {
@@ -31,32 +33,37 @@ impl FilterStreamConfig {
         }
     }
 
-    pub fn generate_oauth_signature(&self) -> String {
+    pub fn get_data_string(&self) -> String {
+        //TODO
+        "".to_string()
+    }
+
+    pub fn get_oauth_string(&self) -> String {
+        //TODO
+        "".to_string()
+    }
+
+    pub fn get_oauth_signature(&self) -> String {
         let mut map = BTreeMap::new();
 
-        match self.follow.clone() {
-            Some(follow) => { map.insert("follow", follow); },
-            _ => {},
+        if let Some(follow) = self.follow.clone() {
+            map.insert("follow", follow);
         }
 
-        match self.track.clone() {
-            Some(track) => { map.insert("track", track); },
-            _ => {},
+        if let Some(track) = self.track.clone() {
+            map.insert("track", track);
         }
 
-        match self.locations.clone() {
-            Some(locations) => { map.insert("locations", locations); },
-            _ => {},
+        if let Some(locations) = self.locations.clone() {
+            map.insert("locations", locations);
         }
 
-        match self.delimited {
-            Some(delimited) => { map.insert("delimited", delimited.to_string()); },
-            _ => {},
+        if let Some(delimited) = self.delimited {
+            map.insert("delimited", delimited.to_string());
         }
 
-        match self.stall_warnings {
-            Some(stall_warnings) => { map.insert("stall_warnings", stall_warnings.to_string()); },
-            _ => {},
+        if let Some(stall_warnings) = self.stall_warnings.clone() {
+            map.insert("stall_warnings", stall_warnings.to_string());
         }
 
         map.insert("oauth_consumer_key", self.oauth_config.consumer_key.clone());
@@ -74,16 +81,33 @@ impl FilterStreamConfig {
         let parameter_string = percent_encode(format!("POST&https://stream.twitter.com/1.1/statuses/filter.json{}", signature_base_string));
         let signing_key = format!("{}&{}", percent_encode(self.oauth_config.consumer_secret.clone()), percent_encode(self.oauth_config.access_token_secret.clone()));
 
-        let mut hmac = Hmac::new(Sha1::new(), &[0u8; 0]);
+        let mut hmac = Hmac::new(Sha1::new(), &signing_key.into_bytes());
         hmac.input(&parameter_string.into_bytes());
-        hmac.input(&signing_key.into_bytes());
-
         hmac.result().code().to_base64(base64::STANDARD)
     }
 }
 
 pub fn open_filter_stream(filter_stream_config: &FilterStreamConfig) -> Receiver<String> {
+    //TODO check for at least one filter
+
     let (tx, rx) = channel::<String>();
+    thread::spawn(move || {
+        let data_string = filter_stream_config.get_data_string();
+        let oauth_string = filter_stream_config.get_oauth_string();
+
+        let resp = http::handle()
+            .post("https://stream.twitter.com/1.1/statuses/filter.json", &data_string[..])
+            .header("Authorization", oauth_string.as_ref())
+            .content_type("application/x-www-form-urlencoded")
+            .exec().unwrap();
+
+        if resp.get_code() != 200 {
+            panic!("error with request");
+        }
+
+        //TODO read from stream and send tweets through channel
+        tx.send("We have a successful stream opened".to_string()).unwrap();
+    });
 
     rx
 }
@@ -94,14 +118,10 @@ mod tests {
     use oauth::OAuthConfig;
 
     #[test]
-    fn test_open_filter_stream() {
-    }
-
-    #[test]
     fn test_generate_oauth_signature() {
         let oauth_config = OAuthConfig::new("".to_string(), "".to_string(), "".to_string(), "".to_string());
         let filter_stream_config = FilterStreamConfig::new(None, Some("red,blue,yellow".to_string()), None, Some(true), Some(false), oauth_config);
 
-        println!("signature:{}", filter_stream_config.generate_oauth_signature());
+        println!("signature:{}", filter_stream_config.get_oauth_signature());
     }
 }
