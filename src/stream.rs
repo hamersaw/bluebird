@@ -34,13 +34,69 @@ impl FilterStreamConfig {
     }
 
     pub fn get_data_string(&self) -> String {
-        //TODO
-        "".to_string()
+        let mut data_string = String::new();
+        let mut field_count = 0;
+
+        if let Some(follow) = self.follow.clone() {
+            data_string.push_str(&format!("format=\"{}\"", follow)[..]);
+            field_count += 1;
+        }
+
+        if let Some(track) = self.track.clone() {
+            if field_count > 0 {
+                data_string.push_str(", ");
+            }
+
+            data_string.push_str(&format!("track=\"{}\"", track)[..]);
+            field_count += 1;
+        }
+
+        if let Some(locations) = self.locations.clone() {
+            if field_count > 0 {
+                data_string.push_str(", ");
+            }
+
+            data_string.push_str(&format!("locations=\"{}\"", locations)[..]);
+            field_count += 1;
+        }
+
+        if let Some(delimited) = self.delimited {
+            if field_count > 0 {
+                data_string.push_str(", ");
+            }
+
+            data_string.push_str(&format!("delimited=\"{}\"", delimited.to_string())[..]);
+            field_count += 1;
+        }
+
+        if let Some(stall_warnings) = self.stall_warnings {
+            if field_count > 0 {
+                data_string.push_str(", ");
+            }
+
+            data_string.push_str(&format!("stall_warnings=\"{}\"", stall_warnings)[..]);
+            //field_count += 1;
+        }
+
+        //TODO exception if field_count == 0
+        data_string
     }
 
     pub fn get_oauth_string(&self) -> String {
-        //TODO
-        "".to_string()
+        format!("OAuth \
+            oauth_consumer_key=\"{}\", \
+            oauth_nonce=\"{}\", \
+            oauth_signature=\"{}\", \
+            oauth_signature_method=\"HMAC-SHA1\", \
+            oauth_timestamp=\"{}\", \
+            oauth_token=\"{}\", \
+            oauth_version=\"1.0\"", 
+            percent_encode(self.oauth_config.consumer_key.clone()),
+            self.oauth_config.nonce,
+            percent_encode(self.get_oauth_signature()),
+            self.oauth_config.timestamp,
+            percent_encode(self.oauth_config.access_token.clone()),
+        )
     }
 
     pub fn get_oauth_signature(&self) -> String {
@@ -73,16 +129,16 @@ impl FilterStreamConfig {
         map.insert("oauth_token", self.oauth_config.access_token.clone());
         map.insert("oauth_version", "1.0".to_string());
 
-        let mut signature_base_string = String::new();
+        let mut parameter_string = String::new();
         for (key, value) in map.iter() {
-            signature_base_string.push_str(&format!("&{}={}", key, value)[..]);
+            parameter_string.push_str(&format!("&{}={}", key, value)[..]);
         }
 
-        let parameter_string = percent_encode(format!("POST&https://stream.twitter.com/1.1/statuses/filter.json{}", signature_base_string));
+        let signature_base_string = format!("POST&{}&{}", percent_encode("https://stream.twitter.com/1.1/statuses/filter.json".to_string()), percent_encode(parameter_string[1..].to_string()));
         let signing_key = format!("{}&{}", percent_encode(self.oauth_config.consumer_secret.clone()), percent_encode(self.oauth_config.access_token_secret.clone()));
 
         let mut hmac = Hmac::new(Sha1::new(), &signing_key.into_bytes());
-        hmac.input(&parameter_string.into_bytes());
+        hmac.input(&signature_base_string.into_bytes());
         hmac.result().code().to_base64(base64::STANDARD)
     }
 }
@@ -90,19 +146,21 @@ impl FilterStreamConfig {
 pub fn open_filter_stream(filter_stream_config: &FilterStreamConfig) -> Receiver<String> {
     //TODO check for at least one filter
 
+    let data_string = filter_stream_config.get_data_string();
+    let oauth_string = filter_stream_config.get_oauth_string();
     let (tx, rx) = channel::<String>();
     thread::spawn(move || {
-        let data_string = filter_stream_config.get_data_string();
-        let oauth_string = filter_stream_config.get_oauth_string();
-
         let resp = http::handle()
             .post("https://stream.twitter.com/1.1/statuses/filter.json", &data_string[..])
-            .header("Authorization", oauth_string.as_ref())
-            .content_type("application/x-www-form-urlencoded")
+            .header("Authorization", &oauth_string[..])
+            //.content_length(data_string.len())
+            //.content_type("application/x-www-form-urlencoded")
             .exec().unwrap();
 
+        println!("{}", resp);
+
         if resp.get_code() != 200 {
-            panic!("error with request");
+            panic!("error with request {}", resp.get_code());
         }
 
         //TODO read from stream and send tweets through channel
@@ -118,7 +176,23 @@ mod tests {
     use oauth::OAuthConfig;
 
     #[test]
-    fn test_generate_oauth_signature() {
+    fn test_get_data_string() {
+        let oauth_config = OAuthConfig::new("".to_string(), "".to_string(), "".to_string(), "".to_string());
+        let filter_stream_config = FilterStreamConfig::new(None, Some("red,blue,yellow".to_string()), None, Some(true), Some(false), oauth_config);
+
+        println!("data_string:\"{}\"", filter_stream_config.get_data_string());
+    }
+
+    #[test]
+    fn test_get_oauth_string() {
+        let oauth_config = OAuthConfig::new("".to_string(), "".to_string(), "".to_string(), "".to_string());
+        let filter_stream_config = FilterStreamConfig::new(None, Some("red,blue,yellow".to_string()), None, Some(true), Some(false), oauth_config);
+
+        println!("oauth_string:\"{}\"", filter_stream_config.get_oauth_string());
+    }
+
+    #[test]
+    fn test_get_oauth_signature() {
         let oauth_config = OAuthConfig::new("".to_string(), "".to_string(), "".to_string(), "".to_string());
         let filter_stream_config = FilterStreamConfig::new(None, Some("red,blue,yellow".to_string()), None, Some(true), Some(false), oauth_config);
 

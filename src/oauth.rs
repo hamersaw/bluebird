@@ -20,7 +20,9 @@ impl OAuthConfig {
             access_token_secret: access_token_secret,
             //nonce: generate_nonce(),
             nonce: rand::thread_rng().gen_ascii_chars().take(32).collect::<String>(),
+            //nonce: "8120b0e7eb20400674e5b9889e2f8335".to_string(),
             timestamp: time::now_utc().to_timespec().sec,
+            //timestamp: 1452279328
         }
     }
 }
