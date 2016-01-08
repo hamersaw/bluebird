@@ -18,25 +18,8 @@ impl OAuthConfig {
             consumer_secret: consumer_secret,
             access_token: access_token,
             access_token_secret: access_token_secret,
-            //nonce: generate_nonce(),
             nonce: rand::thread_rng().gen_ascii_chars().take(32).collect::<String>(),
-            //nonce: "8120b0e7eb20400674e5b9889e2f8335".to_string(),
             timestamp: time::now_utc().to_timespec().sec,
-            //timestamp: 1452279328
         }
     }
 }
-
-/*pub fn generate_nonce() -> String {
-    let mut random = rand::thread_rng();    
-    let mut nonce = [0u8; 32];
-    random.fill_bytes(&mut nonce[..]);
-    let nonce_string = nonce.to_base64(base64::STANDARD);
-
-    nonce_string.chars().map(|x| {
-        match x {
-            '0'...'9' | 'A'...'Z' | 'a'...'z' | '-' | '.' | '_' | '~' => format!("{}", x),
-            _ => "".to_string(),
-        }
-    }).collect()
-}*/

@@ -38,7 +38,7 @@ impl FilterStreamConfig {
         let mut field_count = 0;
 
         if let Some(follow) = self.follow.clone() {
-            data_string.push_str(&format!("format=\"{}\"", follow)[..]);
+            data_string.push_str(&format!("format={}", follow)[..]);
             field_count += 1;
         }
 
@@ -47,7 +47,7 @@ impl FilterStreamConfig {
                 data_string.push_str(", ");
             }
 
-            data_string.push_str(&format!("track=\"{}\"", track)[..]);
+            data_string.push_str(&format!("track={}", track)[..]);
             field_count += 1;
         }
 
@@ -56,7 +56,7 @@ impl FilterStreamConfig {
                 data_string.push_str(", ");
             }
 
-            data_string.push_str(&format!("locations=\"{}\"", locations)[..]);
+            data_string.push_str(&format!("locations={}", locations)[..]);
             field_count += 1;
         }
 
@@ -65,7 +65,7 @@ impl FilterStreamConfig {
                 data_string.push_str(", ");
             }
 
-            data_string.push_str(&format!("delimited=\"{}\"", delimited.to_string())[..]);
+            data_string.push_str(&format!("delimited={}", delimited.to_string())[..]);
             field_count += 1;
         }
 
@@ -74,7 +74,7 @@ impl FilterStreamConfig {
                 data_string.push_str(", ");
             }
 
-            data_string.push_str(&format!("stall_warnings=\"{}\"", stall_warnings)[..]);
+            data_string.push_str(&format!("stall_warnings={}", stall_warnings)[..]);
             //field_count += 1;
         }
 
@@ -153,8 +153,7 @@ pub fn open_filter_stream(filter_stream_config: &FilterStreamConfig) -> Receiver
         let resp = http::handle()
             .post("https://stream.twitter.com/1.1/statuses/filter.json", &data_string[..])
             .header("Authorization", &oauth_string[..])
-            //.content_length(data_string.len())
-            //.content_type("application/x-www-form-urlencoded")
+            .content_type("application/x-www-form-urlencoded")
             .exec().unwrap();
 
         println!("{}", resp);
