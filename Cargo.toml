@@ -1,6 +1,6 @@
 [package]
 name = "bluebird"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Dan Rammer <hamersaw@gmail.com>"]
 
 [dependencies]
@@ -9,3 +9,7 @@ rand = "*"
 rust-crypto = "*"
 rustc-serialize = "*"
 time = "*"
+
+[[example]]
+name = "filter_stream"
+path = "examples/filter_stream/filter_stream.rs"

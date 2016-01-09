@@ -1,9 +1,10 @@
 #bluebird
 
 ##Overview
-Twitter API for rust.
+Unofficial twitter API for rust. Currently the only functionality is opening a public filter stream.
 
 ##TODO
-- change filter_stream_config to be a map that contains all of the values - then we wouldn't have to deal with the constant option bullshit
-- send individual tweets through channel
-- REST API? - work on posting tweets and stuff as well
+- general cleanup of code
+- test filter stream on follow and location
+- work on other stream filtering
+- REST API? - work on posting tweets, etc as well

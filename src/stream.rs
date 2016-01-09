@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::io::Read;
+use std::io::{BufRead,BufReader,Read};
 use std::sync::mpsc::{channel,Receiver};
 use std::thread;
 
@@ -18,69 +18,34 @@ pub struct FilterStreamConfig {
     follow: Option<String>, //comma separated list of users to follow
     track: Option<String>, //comma separated list of keywords to track
     locations: Option<String>, //specifies a set of bounding boxes to track
-    delimited: Option<bool>, //specifies whether messages should be length delimited
-    stall_warnings: Option<bool>, //specifies whether stall warnings should be delivered
     oauth_config: OAuthConfig
 }
 
 impl FilterStreamConfig {
-    pub fn new(follow: Option<String>, track: Option<String>, locations: Option<String>, delimited: Option<bool>, stall_warnings: Option<bool>, oauth_config: OAuthConfig) -> FilterStreamConfig {
+    pub fn new(follow: Option<String>, track: Option<String>, locations: Option<String>, oauth_config: OAuthConfig) -> FilterStreamConfig {
         FilterStreamConfig {
             follow: follow,
             track: track,
             locations: locations,
-            delimited: delimited,
-            stall_warnings: stall_warnings,
             oauth_config: oauth_config,
         }
     }
 
     pub fn get_data_string(&self) -> String {
-        let mut data_string = String::new();
-        let mut field_count = 0;
+        let mut data_string = "delimited=length".to_string();
 
         if let Some(follow) = self.follow.clone() {
-            data_string.push_str(&format!("format={}", follow)[..]);
-            field_count += 1;
+            data_string.push_str(&format!("&format={}", follow)[..]);
         }
 
         if let Some(track) = self.track.clone() {
-            if field_count > 0 {
-                data_string.push_str(", ");
-            }
-
-            data_string.push_str(&format!("track={}", track)[..]);
-            field_count += 1;
+            data_string.push_str(&format!("&track={}", track)[..]);
         }
 
         if let Some(locations) = self.locations.clone() {
-            if field_count > 0 {
-                data_string.push_str(", ");
-            }
-
-            data_string.push_str(&format!("locations={}", locations)[..]);
-            field_count += 1;
+            data_string.push_str(&format!("&locations={}", locations)[..]);
         }
 
-        if let Some(delimited) = self.delimited {
-            if field_count > 0 {
-                data_string.push_str(", ");
-            }
-
-            data_string.push_str(&format!("delimited={}", delimited.to_string())[..]);
-            field_count += 1;
-        }
-
-        if let Some(stall_warnings) = self.stall_warnings {
-            if field_count > 0 {
-                data_string.push_str(", ");
-            }
-
-            data_string.push_str(&format!("stall_warnings={}", stall_warnings)[..]);
-            //field_count += 1;
-        }
-
-        //TODO exception if field_count == 0
         data_string
     }
 
@@ -103,6 +68,7 @@ impl FilterStreamConfig {
 
     pub fn get_oauth_signature(&self) -> String {
         let mut map = BTreeMap::new();
+        map.insert("delimited", "length".to_string());
 
         if let Some(follow) = self.follow.clone() {
             map.insert("follow", follow);
@@ -114,14 +80,6 @@ impl FilterStreamConfig {
 
         if let Some(locations) = self.locations.clone() {
             map.insert("locations", locations);
-        }
-
-        if let Some(delimited) = self.delimited {
-            map.insert("delimited", delimited.to_string());
-        }
-
-        if let Some(stall_warnings) = self.stall_warnings.clone() {
-            map.insert("stall_warnings", stall_warnings.to_string());
         }
 
         map.insert("oauth_consumer_key", self.oauth_config.consumer_key.clone());
@@ -159,23 +117,35 @@ pub fn open_filter_stream(filter_stream_config: &FilterStreamConfig) -> Receiver
             .header(ContentType::form_url_encoded())
             .send().unwrap();
 
-        let mut count = 0;
-        let mut buffer = vec![0; 1024];
+        let mut buffer = String::new();
+        let mut reader = BufReader::new(res.by_ref());
         loop {
-            //TODO read one tweet at a time - going to be difficult
-            match res.read(&mut buffer) {
-                Ok(bytes) => {
-                    if bytes == 0 {
-                        thread::sleep_ms(500);
-                    } else {
-                        println!("read {} bytes", bytes);
-                        println!("{}", String::from_utf8(buffer.clone()).unwrap());
-                        tx.send(format!("{}", count)).unwrap();
-                        count += 1;
-                    }
-                },
-                Err(_) => println!("error"),
+            //read number of bytes in tweet
+            loop {
+                match reader.read_line(&mut buffer) {
+                    Ok(bytes) => {
+                        if bytes != 0 {
+                            break;
+                        }
+                    },
+                    Err(e) => panic!("{}", e),
+                }
             }
+
+            //parse string into unsigned 32 bit integer
+            let mut remaining_bytes = buffer.trim().parse::<u32>().unwrap();
+            buffer.clear();
+
+            //read tweet bytes
+            let mut tweet = String::new();
+            while remaining_bytes > 0 {
+                match reader.read_line(&mut tweet) {
+                    Ok(bytes) => remaining_bytes -= bytes as u32,
+                    Err(e) => panic!("{}", e),
+                }
+            }
+
+            tx.send(tweet).unwrap();
         }
     });
 
@@ -190,7 +160,7 @@ mod tests {
     #[test]
     fn test_get_data_string() {
         let oauth_config = OAuthConfig::new("".to_string(), "".to_string(), "".to_string(), "".to_string());
-        let filter_stream_config = FilterStreamConfig::new(None, Some("red,blue,yellow".to_string()), None, Some(true), Some(false), oauth_config);
+        let filter_stream_config = FilterStreamConfig::new(None, Some("red,blue,yellow".to_string()), None, oauth_config);
 
         println!("data_string:\"{}\"", filter_stream_config.get_data_string());
     }
@@ -198,7 +168,7 @@ mod tests {
     #[test]
     fn test_get_oauth_string() {
         let oauth_config = OAuthConfig::new("".to_string(), "".to_string(), "".to_string(), "".to_string());
-        let filter_stream_config = FilterStreamConfig::new(None, Some("red,blue,yellow".to_string()), None, Some(true), Some(false), oauth_config);
+        let filter_stream_config = FilterStreamConfig::new(None, Some("red,blue,yellow".to_string()), None, oauth_config);
 
         println!("oauth_string:\"{}\"", filter_stream_config.get_oauth_string());
     }
@@ -206,7 +176,7 @@ mod tests {
     #[test]
     fn test_get_oauth_signature() {
         let oauth_config = OAuthConfig::new("".to_string(), "".to_string(), "".to_string(), "".to_string());
-        let filter_stream_config = FilterStreamConfig::new(None, Some("red,blue,yellow".to_string()), None, Some(true), Some(false), oauth_config);
+        let filter_stream_config = FilterStreamConfig::new(None, Some("red,blue,yellow".to_string()), None, oauth_config);
 
         println!("signature:{}", filter_stream_config.get_oauth_signature());
     }
