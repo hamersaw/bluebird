@@ -1,119 +1,49 @@
-use std::collections::BTreeMap;
+use RequestConfig;
+use OAuthConfig;
+
+use std::collections::HashMap;
 use std::io::{BufRead,BufReader,Read};
 use std::sync::mpsc::{channel,Receiver};
 use std::thread;
 
-use oauth::OAuthConfig;
-use percent_encode;
-
-use crypto::digest::Digest;
-use crypto::hmac::Hmac;
-use crypto::mac::Mac;
-use crypto::sha1::Sha1;
 use hyper::Client;
 use hyper::header::{Authorization,ContentType};
-use rustc_serialize::base64::{self,ToBase64};
 
-pub struct FilterStreamConfig {
-    follow: Option<String>, //comma separated list of users to follow
-    track: Option<String>, //comma separated list of keywords to track
-    locations: Option<String>, //specifies a set of bounding boxes to track
-    oauth_config: OAuthConfig
-}
+pub fn create_filter_stream_config(follow: Option<String>, track: Option<String>, locations: Option<String>, oauth_config: OAuthConfig) -> RequestConfig {
+    let mut parameters = HashMap::new();
+    parameters.insert("delimited".to_string(), "length".to_string());
 
-impl FilterStreamConfig {
-    pub fn new(follow: Option<String>, track: Option<String>, locations: Option<String>, oauth_config: OAuthConfig) -> FilterStreamConfig {
-        FilterStreamConfig {
-            follow: follow,
-            track: track,
-            locations: locations,
-            oauth_config: oauth_config,
-        }
+    if let Some(follow) = follow {
+        parameters.insert("follow".to_string(), follow);
     }
 
-    pub fn get_data_string(&self) -> String {
-        let mut data_string = "delimited=length".to_string();
-
-        if let Some(follow) = self.follow.clone() {
-            data_string.push_str(&format!("&format={}", follow)[..]);
-        }
-
-        if let Some(track) = self.track.clone() {
-            data_string.push_str(&format!("&track={}", track)[..]);
-        }
-
-        if let Some(locations) = self.locations.clone() {
-            data_string.push_str(&format!("&locations={}", locations)[..]);
-        }
-
-        data_string
+    if let Some(track) = track {
+        parameters.insert("track".to_string(), track);
     }
 
-    pub fn get_oauth_string(&self) -> String {
-        format!("OAuth \
-            oauth_consumer_key=\"{}\", \
-            oauth_nonce=\"{}\", \
-            oauth_signature=\"{}\", \
-            oauth_signature_method=\"HMAC-SHA1\", \
-            oauth_timestamp=\"{}\", \
-            oauth_token=\"{}\", \
-            oauth_version=\"1.0\"", 
-            percent_encode(self.oauth_config.consumer_key.clone()),
-            self.oauth_config.nonce,
-            percent_encode(self.get_oauth_signature()),
-            self.oauth_config.timestamp,
-            percent_encode(self.oauth_config.access_token.clone()),
-        )
+    if let Some(locations) = locations {
+        parameters.insert("locations".to_string(), locations);
     }
 
-    pub fn get_oauth_signature(&self) -> String {
-        let mut map = BTreeMap::new();
-        map.insert("delimited", "length".to_string());
-
-        if let Some(follow) = self.follow.clone() {
-            map.insert("follow", follow);
-        }
-
-        if let Some(track) = self.track.clone() {
-            map.insert("track", track);
-        }
-
-        if let Some(locations) = self.locations.clone() {
-            map.insert("locations", locations);
-        }
-
-        map.insert("oauth_consumer_key", self.oauth_config.consumer_key.clone());
-        map.insert("oauth_nonce", self.oauth_config.nonce.clone());
-        map.insert("oauth_signature_method", "HMAC-SHA1".to_string());
-        map.insert("oauth_timestamp", self.oauth_config.timestamp.to_string());
-        map.insert("oauth_token", self.oauth_config.access_token.clone());
-        map.insert("oauth_version", "1.0".to_string());
-
-        let mut parameter_string = String::new();
-        for (key, value) in map.iter() {
-            parameter_string.push_str(&format!("&{}={}", key, value)[..]);
-        }
-
-        let signature_base_string = format!("POST&{}&{}", percent_encode("https://stream.twitter.com/1.1/statuses/filter.json".to_string()), percent_encode(parameter_string[1..].to_string()));
-        let signing_key = format!("{}&{}", percent_encode(self.oauth_config.consumer_secret.clone()), percent_encode(self.oauth_config.access_token_secret.clone()));
-
-        let mut hmac = Hmac::new(Sha1::new(), &signing_key.into_bytes());
-        hmac.input(&signature_base_string.into_bytes());
-        hmac.result().code().to_base64(base64::STANDARD)
+    RequestConfig {
+        parameters: parameters,
+        oauth_config: oauth_config,
     }
 }
 
-pub fn open_filter_stream(filter_stream_config: &FilterStreamConfig) -> Receiver<String> {
-    //TODO check for at least one filter
+pub fn open_filter_stream(filter_stream_config: &RequestConfig) -> Result<Receiver<String>,String> {
+    if filter_stream_config.get_parameter_count() < 2 { //we're automatically adding the delimited parameter
+        return Err(format!("Need to specify at least one filter parameter to open a filter stream. Only {} was supplied", filter_stream_config.get_parameter_count() - 1));
+    }
 
-    let data_string = filter_stream_config.get_data_string();
-    let oauth_string = filter_stream_config.get_oauth_string();
+    let data_body = filter_stream_config.get_data_body();
+    let authorization_header = filter_stream_config.get_authorization_header();
     let (tx, rx) = channel::<String>();
     thread::spawn(move || {
         let client = Client::new();
         let mut res = client.post("https://stream.twitter.com/1.1/statuses/filter.json")
-            .body(&data_string[..])
-            .header(Authorization(oauth_string))
+            .body(&data_body[..])
+            .header(Authorization(authorization_header))
             .header(ContentType::form_url_encoded())
             .send().unwrap();
 
@@ -149,35 +79,5 @@ pub fn open_filter_stream(filter_stream_config: &FilterStreamConfig) -> Receiver
         }
     });
 
-    rx
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use oauth::OAuthConfig;
-
-    #[test]
-    fn test_get_data_string() {
-        let oauth_config = OAuthConfig::new("".to_string(), "".to_string(), "".to_string(), "".to_string());
-        let filter_stream_config = FilterStreamConfig::new(None, Some("red,blue,yellow".to_string()), None, oauth_config);
-
-        println!("data_string:\"{}\"", filter_stream_config.get_data_string());
-    }
-
-    #[test]
-    fn test_get_oauth_string() {
-        let oauth_config = OAuthConfig::new("".to_string(), "".to_string(), "".to_string(), "".to_string());
-        let filter_stream_config = FilterStreamConfig::new(None, Some("red,blue,yellow".to_string()), None, oauth_config);
-
-        println!("oauth_string:\"{}\"", filter_stream_config.get_oauth_string());
-    }
-
-    #[test]
-    fn test_get_oauth_signature() {
-        let oauth_config = OAuthConfig::new("".to_string(), "".to_string(), "".to_string(), "".to_string());
-        let filter_stream_config = FilterStreamConfig::new(None, Some("red,blue,yellow".to_string()), None, oauth_config);
-
-        println!("signature:{}", filter_stream_config.get_oauth_signature());
-    }
+    Ok(rx)
 }
