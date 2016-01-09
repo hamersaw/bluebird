@@ -18,18 +18,12 @@ fn main() {
     let _ = io::stdin().read_line(&mut access_token_secret).unwrap();
 
     let oauth_config = OAuthConfig::new(consumer_key.trim().to_string(), consumer_secret.trim().to_string(), access_token.trim().to_string(), access_token_secret.trim().to_string());
-    let filter_stream_config = bluebird::stream::create_filter_stream_config(
-        None, //follow users
-        Some("twitter".to_string()), //track keywords
-        None, //location bounding boxes
+    let filter_config = bluebird::statuses::create_update_config(
+        "Testing out my rust twitter API \"bluebird\"".to_string() //status
     );
 
-    let rx = match bluebird::stream::open_filter_stream(&filter_stream_config, &oauth_config) {
-        Ok(rx) => rx,
+    match bluebird::statuses::post_status_update(&filter_config, &oauth_config) {
+        Ok(_) => println!("successfully update status"),
         Err(e) => panic!("{}", e),
-    };
-
-    while let Ok(tweet) = rx.recv() {
-        println!("{}", tweet);
     }
 }

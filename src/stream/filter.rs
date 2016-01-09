@@ -1,5 +1,4 @@
-use RequestConfig;
-use OAuthConfig;
+use {RequestConfig,OAuthConfig};
 use get_authorization_header;
 
 use std::collections::HashMap;
@@ -10,7 +9,9 @@ use std::thread;
 use hyper::Client;
 use hyper::header::{Authorization,ContentType};
 
-pub fn create_filter_stream_config(follow: Option<String>, track: Option<String>, locations: Option<String>) -> RequestConfig {
+static URI: &'static str = "https://stream.twitter.com/1.1/statuses/filter.json";
+
+pub fn create_stream_config(follow: Option<String>, track: Option<String>, locations: Option<String>) -> RequestConfig {
     let mut parameters = HashMap::new();
     parameters.insert("delimited".to_string(), "length".to_string());
 
@@ -31,21 +32,23 @@ pub fn create_filter_stream_config(follow: Option<String>, track: Option<String>
     }
 }
 
-pub fn open_filter_stream(request_config: &RequestConfig, oauth_config: &OAuthConfig) -> Result<Receiver<String>,String> {
+pub fn open_stream(request_config: &RequestConfig, oauth_config: &OAuthConfig) -> Result<Receiver<String>,String> {
     if request_config.get_parameter_count() < 2 { //we're automatically adding the delimited parameter
         return Err(format!("Need to specify at least one filter parameter to open a filter stream. Only {} was supplied", request_config.get_parameter_count() - 1));
     }
 
     let data_body = request_config.get_data_body();
-    let authorization_header = get_authorization_header(request_config, oauth_config);
+    let authorization_header = get_authorization_header(request_config, oauth_config, URI);
     let (tx, rx) = channel::<String>();
     thread::spawn(move || {
         let client = Client::new();
-        let mut res = client.post("https://stream.twitter.com/1.1/statuses/filter.json")
+        let mut res = client.post(URI)
             .body(&data_body[..])
             .header(Authorization(authorization_header))
             .header(ContentType::form_url_encoded())
             .send().unwrap();
+
+        //TODO check the status code of response
 
         let mut buffer = String::new();
         let mut reader = BufReader::new(res.by_ref());

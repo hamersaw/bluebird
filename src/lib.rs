@@ -4,6 +4,7 @@ extern crate rand;
 extern crate rustc_serialize;
 extern crate time;
 
+pub mod statuses;
 pub mod stream;
 
 use std::collections::{BTreeMap,HashMap};
@@ -60,7 +61,7 @@ impl OAuthConfig {
     }
 }
 
-pub fn get_authorization_header(request_config: &RequestConfig, oauth_config: &OAuthConfig) -> String {
+pub fn get_authorization_header(request_config: &RequestConfig, oauth_config: &OAuthConfig, uri: &str) -> String {
     format!("OAuth \
         oauth_consumer_key=\"{}\", \
         oauth_nonce=\"{}\", \
@@ -71,13 +72,13 @@ pub fn get_authorization_header(request_config: &RequestConfig, oauth_config: &O
         oauth_version=\"1.0\"", 
         percent_encode(oauth_config.consumer_key.clone()),
         oauth_config.nonce,
-        percent_encode(get_oauth_signature(request_config, oauth_config)),
+        percent_encode(get_oauth_signature(request_config, oauth_config, uri)),
         oauth_config.timestamp,
         percent_encode(oauth_config.access_token.clone()),
     )
 }
 
-fn get_oauth_signature(request_config: &RequestConfig, oauth_config: &OAuthConfig) -> String {
+fn get_oauth_signature(request_config: &RequestConfig, oauth_config: &OAuthConfig, uri: &str) -> String {
     let mut map = BTreeMap::new();
     for (key, value) in request_config.parameters.iter() {
         map.insert(key.clone(), value.clone());
@@ -95,7 +96,7 @@ fn get_oauth_signature(request_config: &RequestConfig, oauth_config: &OAuthConfi
         parameter_string.push_str(&format!("&{}={}", key, value)[..]);
     }
 
-    let signature_base_string = format!("POST&{}&{}", percent_encode("https://stream.twitter.com/1.1/statuses/filter.json".to_string()), percent_encode(parameter_string[1..].to_string()));
+    let signature_base_string = format!("POST&{}&{}", percent_encode(uri.to_string()), percent_encode(parameter_string[1..].to_string()));
     let signing_key = format!("{}&{}", percent_encode(oauth_config.consumer_secret.clone()), percent_encode(oauth_config.access_token_secret.clone()));
 
     let mut hmac = Hmac::new(Sha1::new(), &signing_key.into_bytes());
