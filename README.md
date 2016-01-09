@@ -1,9 +1,11 @@
 #bluebird
 
 ##Overview
-Unofficial twitter API for rust. Currently the only functionality is opening a public filter stream.
+Unofficial twitter API for rust.
+
+##Examples
+See examples folder.
 
 ##TODO
 - test filter stream on follow and location
-- work on other stream filtering
-- REST API? - work on posting tweets, etc as well
+- start filling out all of the twitter REST API functionality
