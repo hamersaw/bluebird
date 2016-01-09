@@ -4,8 +4,6 @@
 Twitter API for rust.
 
 ##TODO
-- generate data string
-- generate oauth string
-- send http post
+- change filter_stream_config to be a map that contains all of the values - then we wouldn't have to deal with the constant option bullshit
 - send individual tweets through channel
-- REST API?
+- REST API? - work on posting tweets and stuff as well

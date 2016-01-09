@@ -1,6 +1,6 @@
-extern crate rand;
 extern crate crypto;
-extern crate curl;
+extern crate hyper;
+extern crate rand;
 extern crate rustc_serialize;
 extern crate time;
 

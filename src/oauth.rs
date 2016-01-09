@@ -1,5 +1,4 @@
 use rand::{self,Rng};
-//use rustc_serialize::base64::{self,ToBase64};
 use time;
 
 pub struct OAuthConfig {

@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::io::Read;
 use std::sync::mpsc::{channel,Receiver};
 use std::thread;
 
@@ -9,7 +10,8 @@ use crypto::digest::Digest;
 use crypto::hmac::Hmac;
 use crypto::mac::Mac;
 use crypto::sha1::Sha1;
-use curl::http;
+use hyper::Client;
+use hyper::header::{Authorization,ContentType};
 use rustc_serialize::base64::{self,ToBase64};
 
 pub struct FilterStreamConfig {
@@ -150,20 +152,31 @@ pub fn open_filter_stream(filter_stream_config: &FilterStreamConfig) -> Receiver
     let oauth_string = filter_stream_config.get_oauth_string();
     let (tx, rx) = channel::<String>();
     thread::spawn(move || {
-        let resp = http::handle()
-            .post("https://stream.twitter.com/1.1/statuses/filter.json", &data_string[..])
-            .header("Authorization", &oauth_string[..])
-            .content_type("application/x-www-form-urlencoded")
-            .exec().unwrap();
+        let client = Client::new();
+        let mut res = client.post("https://stream.twitter.com/1.1/statuses/filter.json")
+            .body(&data_string[..])
+            .header(Authorization(oauth_string))
+            .header(ContentType::form_url_encoded())
+            .send().unwrap();
 
-        println!("{}", resp);
-
-        if resp.get_code() != 200 {
-            panic!("error with request {}", resp.get_code());
+        let mut count = 0;
+        let mut buffer = vec![0; 1024];
+        loop {
+            //TODO read one tweet at a time - going to be difficult
+            match res.read(&mut buffer) {
+                Ok(bytes) => {
+                    if bytes == 0 {
+                        thread::sleep_ms(500);
+                    } else {
+                        println!("read {} bytes", bytes);
+                        println!("{}", String::from_utf8(buffer.clone()).unwrap());
+                        tx.send(format!("{}", count)).unwrap();
+                        count += 1;
+                    }
+                },
+                Err(_) => println!("error"),
+            }
         }
-
-        //TODO read from stream and send tweets through channel
-        tx.send("We have a successful stream opened".to_string()).unwrap();
     });
 
     rx

@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Dan Rammer <hamersaw@gmail.com>"]
 
 [dependencies]
-curl = "*"
+hyper = "*"
 rand = "*"
 rust-crypto = "*"
 rustc-serialize = "*"
