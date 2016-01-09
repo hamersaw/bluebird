@@ -1,5 +1,6 @@
 use RequestConfig;
 use OAuthConfig;
+use get_authorization_header;
 
 use std::collections::HashMap;
 use std::io::{BufRead,BufReader,Read};
@@ -9,7 +10,7 @@ use std::thread;
 use hyper::Client;
 use hyper::header::{Authorization,ContentType};
 
-pub fn create_filter_stream_config(follow: Option<String>, track: Option<String>, locations: Option<String>, oauth_config: OAuthConfig) -> RequestConfig {
+pub fn create_filter_stream_config(follow: Option<String>, track: Option<String>, locations: Option<String>) -> RequestConfig {
     let mut parameters = HashMap::new();
     parameters.insert("delimited".to_string(), "length".to_string());
 
@@ -27,17 +28,16 @@ pub fn create_filter_stream_config(follow: Option<String>, track: Option<String>
 
     RequestConfig {
         parameters: parameters,
-        oauth_config: oauth_config,
     }
 }
 
-pub fn open_filter_stream(filter_stream_config: &RequestConfig) -> Result<Receiver<String>,String> {
-    if filter_stream_config.get_parameter_count() < 2 { //we're automatically adding the delimited parameter
-        return Err(format!("Need to specify at least one filter parameter to open a filter stream. Only {} was supplied", filter_stream_config.get_parameter_count() - 1));
+pub fn open_filter_stream(request_config: &RequestConfig, oauth_config: &OAuthConfig) -> Result<Receiver<String>,String> {
+    if request_config.get_parameter_count() < 2 { //we're automatically adding the delimited parameter
+        return Err(format!("Need to specify at least one filter parameter to open a filter stream. Only {} was supplied", request_config.get_parameter_count() - 1));
     }
 
-    let data_body = filter_stream_config.get_data_body();
-    let authorization_header = filter_stream_config.get_authorization_header();
+    let data_body = request_config.get_data_body();
+    let authorization_header = get_authorization_header(request_config, oauth_config);
     let (tx, rx) = channel::<String>();
     thread::spawn(move || {
         let client = Client::new();

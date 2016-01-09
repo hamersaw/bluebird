@@ -22,10 +22,9 @@ fn main() {
         None, //follow users
         Some("twitter".to_string()), //track keywords
         None, //location bounding boxes
-        oauth_config
     );
 
-    let rx = match bluebird::stream::open_filter_stream(&filter_stream_config) {
+    let rx = match bluebird::stream::open_filter_stream(&filter_stream_config, &oauth_config) {
         Ok(rx) => rx,
         Err(e) => panic!("{}", e),
     };
