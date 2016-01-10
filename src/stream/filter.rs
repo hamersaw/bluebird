@@ -1,18 +1,19 @@
 use {RequestConfig,OAuthConfig};
 use get_authorization_header;
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::io::{BufRead,BufReader,Read};
 use std::sync::mpsc::{channel,Receiver};
 use std::thread;
 
 use hyper::Client;
 use hyper::header::{Authorization,ContentType};
+use hyper::status::StatusCode;
 
 static URI: &'static str = "https://stream.twitter.com/1.1/statuses/filter.json";
 
 pub fn create_stream_config(follow: Option<String>, track: Option<String>, locations: Option<String>) -> RequestConfig {
-    let mut parameters = HashMap::new();
+    let mut parameters = BTreeMap::new();
     parameters.insert("delimited".to_string(), "length".to_string());
 
     if let Some(follow) = follow {
@@ -39,19 +40,31 @@ pub fn open_stream(request_config: &RequestConfig, oauth_config: &OAuthConfig) -
 
     let data_body = request_config.get_data_body();
     let authorization_header = get_authorization_header(request_config, oauth_config, URI);
+
+    //send http post message
+    let client = Client::new();
+    let mut res = client.post(URI)
+        .body(&data_body[..])
+        .header(Authorization(authorization_header))
+        .header(ContentType::form_url_encoded())
+        .send().unwrap();
+
+    //check status code of http response
+    if res.status != StatusCode::Ok {
+        let mut body = String::new();
+        {
+            let mut reader = BufReader::new(res.by_ref());
+            reader.read_line(&mut body).unwrap();
+        }
+
+        return Err(format!("http response has status code '{:?}' and body '{}'", res.status, body));
+    }
+
     let (tx, rx) = channel::<String>();
     thread::spawn(move || {
-        let client = Client::new();
-        let mut res = client.post(URI)
-            .body(&data_body[..])
-            .header(Authorization(authorization_header))
-            .header(ContentType::form_url_encoded())
-            .send().unwrap();
-
-        //TODO check the status code of response
-
         let mut buffer = String::new();
         let mut reader = BufReader::new(res.by_ref());
+
         loop {
             //read number of bytes in tweet
             loop {

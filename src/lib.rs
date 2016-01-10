@@ -7,7 +7,7 @@ extern crate time;
 pub mod statuses;
 pub mod stream;
 
-use std::collections::{BTreeMap,HashMap};
+use std::collections::BTreeMap;
 use rand::Rng;
 
 use crypto::digest::Digest;
@@ -17,7 +17,7 @@ use crypto::sha1::Sha1;
 use rustc_serialize::base64::{self,ToBase64};
 
 pub struct RequestConfig {
-    parameters: HashMap<String,String>,
+    parameters: BTreeMap<String,String>,
 }
 
 impl RequestConfig {
@@ -32,7 +32,7 @@ impl RequestConfig {
                 data_string.push_str("&");
             }
 
-            data_string.push_str(&format!("{}={}", key, value)[..]);
+            data_string.push_str(&format!("{}={}", key, percent_encode(value.clone()))[..]);
         }
 
         data_string
@@ -81,7 +81,7 @@ pub fn get_authorization_header(request_config: &RequestConfig, oauth_config: &O
 fn get_oauth_signature(request_config: &RequestConfig, oauth_config: &OAuthConfig, uri: &str) -> String {
     let mut map = BTreeMap::new();
     for (key, value) in request_config.parameters.iter() {
-        map.insert(key.clone(), value.clone());
+        map.insert(key.clone(), percent_encode(value.clone()));
     }
 
     map.insert("oauth_consumer_key".to_string(), oauth_config.consumer_key.clone());

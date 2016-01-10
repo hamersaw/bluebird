@@ -18,11 +18,11 @@ fn main() {
     let _ = io::stdin().read_line(&mut access_token_secret).unwrap();
 
     let oauth_config = OAuthConfig::new(consumer_key.trim().to_string(), consumer_secret.trim().to_string(), access_token.trim().to_string(), access_token_secret.trim().to_string());
-    let filter_config = bluebird::statuses::create_update_config(
-        "Testing out my rust twitter API \"bluebird\"".to_string() //status
+    let update_config = bluebird::statuses::create_update_config(
+        "Testing the rust twitter API \"bluebird\" (https://github.com/hamersaw/bluebird)".to_string() //status
     );
 
-    match bluebird::statuses::post_status_update(&filter_config, &oauth_config) {
+    match bluebird::statuses::post_status_update(&update_config, &oauth_config) {
         Ok(_) => println!("successfully update status"),
         Err(e) => panic!("{}", e),
     }

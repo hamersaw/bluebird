@@ -19,9 +19,9 @@ fn main() {
 
     let oauth_config = OAuthConfig::new(consumer_key.trim().to_string(), consumer_secret.trim().to_string(), access_token.trim().to_string(), access_token_secret.trim().to_string());
     let filter_config = bluebird::stream::filter::create_stream_config(
-        None, //follow users
-        Some("twitter".to_string()), //track keywords
-        None, //location bounding boxes
+        None, //follow users ex. "12345,3425"
+        Some("twitter".to_string()), //track keywords ex. "twitter,facebook,linkedin"
+        None, //location bounding boxes ex. "-74,40,-73,41"
     );
 
     let rx = match bluebird::stream::filter::open_stream(&filter_config, &oauth_config) {
