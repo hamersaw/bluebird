@@ -54,7 +54,6 @@ impl OAuthConfig {
         let signature_base_string = format!("{}&{}&{}", http_request_type, percent_encode(uri.to_string()), percent_encode(parameter_string[1..].to_string()));
         let signing_key = format!("{}&{}", percent_encode(self.consumer_secret.clone()), percent_encode(self.access_token_secret.clone()));
 
-        println!("signature base string:{}", signature_base_string);
         let mut hmac = Hmac::new(Sha1::new(), &signing_key.into_bytes());
         hmac.input(&signature_base_string.into_bytes());
         let oauth_signature = hmac.result().code().to_base64(base64::STANDARD);       

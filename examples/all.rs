@@ -38,12 +38,12 @@ fn main() {
     }
 
     //OPEN FILTER STREAM
-    /*match client.open_filter_stream(None, Some("twitter"), None).exec() {
+    match client.open_filter_stream(None, Some("twitter".to_string()), None).exec() {
         Ok(rx) => {
             while let Ok(tweet) = rx.recv() {
                 println!("{}", tweet);
             }
         },
         Err(e) => panic!("{}", e),
-    }*/
+    }
 }
