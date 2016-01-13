@@ -4,8 +4,9 @@ extern crate rand;
 extern crate rustc_serialize;
 extern crate time;
 
+pub mod filter_stream;
 pub mod statuses;
-pub mod stream;
+pub mod users;
 
 use std::collections::BTreeMap;
 use rand::Rng;

@@ -12,7 +12,7 @@ use hyper::status::StatusCode;
 
 static URI: &'static str = "https://stream.twitter.com/1.1/statuses/filter.json";
 
-pub fn create_stream_config(follow: Option<String>, track: Option<String>, locations: Option<String>) -> RequestConfig {
+pub fn create_config(follow: Option<String>, track: Option<String>, locations: Option<String>) -> RequestConfig {
     let mut parameters = BTreeMap::new();
     parameters.insert("delimited".to_string(), "length".to_string());
 

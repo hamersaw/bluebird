@@ -12,8 +12,12 @@ time = "*"
 
 [[example]]
 name = "filter_stream"
-path = "examples/stream/filter.rs"
+path = "examples/filter_stream.rs"
 
 [[example]]
 name = "post_status_update"
-path = "examples/statuses/update.rs"
+path = "examples/post_update_status.rs"
+
+[[example]]
+name = "get_user_show"
+path = "examples/get_user_show.rs"

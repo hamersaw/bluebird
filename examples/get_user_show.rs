@@ -18,18 +18,13 @@ fn main() {
     let _ = io::stdin().read_line(&mut access_token_secret).unwrap();
 
     let oauth_config = OAuthConfig::new(consumer_key.trim().to_string(), consumer_secret.trim().to_string(), access_token.trim().to_string(), access_token_secret.trim().to_string());
-    let filter_config = bluebird::stream::filter::create_stream_config(
-        None, //follow users ex. "12345,3425"
-        Some("twitter".to_string()), //track keywords ex. "twitter,facebook,linkedin"
-        None, //location bounding boxes ex. "-74,40,-73,41"
+    let show_config = bluebird::users::create_show_config(
+        None, //user_id
+        Some("hamersaw".to_string()), //screen_name
     );
 
-    let rx = match bluebird::stream::filter::open_stream(&filter_config, &oauth_config) {
-        Ok(rx) => rx,
+    match bluebird::users::get_user_show(&show_config, &oauth_config) {
+        Ok(json) => println!("{}", json),
         Err(e) => panic!("{}", e),
-    };
-
-    while let Ok(tweet) = rx.recv() {
-        println!("{}", tweet);
     }
 }
