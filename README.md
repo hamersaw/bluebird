@@ -7,6 +7,6 @@ Unofficial twitter API for rust.
 See examples folder.
 
 ##TODO
-- get GET and POST differentiated in the request config - need it for get users to work
+- get streaming working from the client
 - switch over to rusts curl implementation instead of hyper?
 - start filling out all of the twitter REST API functionality
