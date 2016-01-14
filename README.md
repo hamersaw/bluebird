@@ -7,5 +7,5 @@ Unofficial twitter API for rust.
 See examples folder.
 
 ##TODO
-- switch over to rusts curl implementation instead of hyper?
-- start filling out all of the twitter REST API functionality
+- potentially switch to rusts curl implementation?
+- continue filling out twitter REST API functionality

@@ -25,19 +25,39 @@ fn main() {
         access_token_secret.trim().to_string()
     );
 
-    //SHOW USER
-    match client.show_user(None, Some("hamersaw".to_string())).exec() {
+    //USER
+    match client.lookup_users(Some("twitterapi,twitter".to_string()), None).exec() {
         Ok(json) => println!("{}", json),
         Err(e) => panic!("{}", e),
     }
 
-    //UPDATE STATUS
+    match client.search_users("twitterapi".to_string(), None, None).exec() {
+        Ok(json) => println!("{}", json),
+        Err(e) => panic!("{}", e),
+    }
+
+    match client.show_user(None, Some("twitterapi".to_string())).exec() {
+        Ok(json) => println!("{}", json),
+        Err(e) => panic!("{}", e),
+    }
+
+    //STATUS
+    match client.home_timeline(Some("10".to_string()), None, None).exec() {
+        Ok(json) => println!("{}", json),
+        Err(e) => panic!("{}", e),
+    }
+
     match client.update_status("Testing the rust twitter api \"bluebird\" (https://github.com/hamersaw/bluebird)".to_string()).exec() {
         Ok(json) => println!("{}", json),
         Err(e) => panic!("{}", e),
     }
 
-    //OPEN FILTER STREAM
+    match client.user_timeline(None, Some("twitterapi".to_string()), Some("10".to_string()), None, None).exec() {
+        Ok(json) => println!("{}", json),
+        Err(e) => panic!("{}", e),
+    }
+
+    //STREAM
     match client.open_filter_stream(None, Some("twitter".to_string()), None).exec() {
         Ok(rx) => {
             while let Ok(tweet) = rx.recv() {
