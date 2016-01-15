@@ -131,7 +131,7 @@ impl<'a> StreamRequest<'a> {
             let mut body = String::new();
             res.read_to_string(&mut body).unwrap();
 
-            return Err(format!("http response has status code '{:?}' and body '{}'", res.status, body));
+            return Err(format!("http response has code '{:?}' and body '{}'", res.status, body));
         }
 
         let (tx, rx) = channel::<String>();

@@ -7,5 +7,6 @@ Unofficial twitter API for rust.
 See examples folder.
 
 ##TODO
-- potentially switch to rusts curl implementation?
+- potentially switch to rusts curl implementation? - much more lightweight
+- complete documentation
 - continue filling out twitter REST API functionality
