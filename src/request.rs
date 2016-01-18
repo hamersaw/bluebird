@@ -1,198 +1,143 @@
-use percent_encode;
-use oauth::OAuthConfig;
-
-use std::collections::BTreeMap;
-use std::io::{BufRead,BufReader,Read};
-use std::sync::mpsc::{channel,Receiver};
-use std::thread;
-
+use crypto::digest::Digest;
+use crypto::hmac::Hmac;
+use crypto::mac::Mac;
+use crypto::sha1::Sha1;
 use hyper::Client;
 use hyper::header::{Authorization,ContentType};
-use hyper::status::StatusCode;
+use rand::{self,Rng};
+use rustc_serialize::base64::{self,ToBase64};
+use time;
 
-/// Trait requiring an exec() function for bluebird request structs
-pub trait BluebirdRequest<E> {
-    fn exec(&self) -> Result<E,String>;
+use std::collections::BTreeMap;
+use std::io::Read;
+
+pub enum HttpMethod {
+    Get,
+    Head,
+    Post,
 }
 
-/// Struct representing an HTTP GET request
-pub struct GetRequest<'a> {
+pub struct HttpRequest<'a> {
     uri: &'a str,
-    parameters: BTreeMap<String,String>,
-    oauth_config: OAuthConfig,
+    method: HttpMethod,
+    parameters: BTreeMap<&'a str,&'a str>,
+    nonce: String,
+    timestamp: i64,
+    consumer_key: &'a str,
+    consumer_secret: &'a str,
+    access_token: &'a str,
+    access_token_secret: &'a str,
 }
 
-impl<'a> GetRequest<'a> {
-    /// Creates a new GetRequest struct
-    pub fn new(uri: &str, parameters: BTreeMap<String,String>, oauth_config: OAuthConfig) -> GetRequest {
-        GetRequest {
+impl<'a> HttpRequest<'a> {
+    pub fn new(uri: &'a str, method: HttpMethod, parameters: BTreeMap<&'a str,&'a str>, consumer_key: &'a str, consumer_secret: &'a str, access_token: &'a str, access_token_secret: &'a str) -> HttpRequest<'a> {
+        HttpRequest {
             uri: uri,
+            method: method,
             parameters: parameters,
-            oauth_config: oauth_config,
+            nonce: rand::thread_rng().gen_ascii_chars().take(32).collect::<String>(),
+            timestamp: time::now_utc().to_timespec().sec,
+            consumer_key: consumer_key,
+            consumer_secret: consumer_secret,
+            access_token: access_token,
+            access_token_secret: access_token_secret,
         }
     }
-}
 
-impl<'a> BluebirdRequest<String> for GetRequest<'a> {
-    /// Executes the GetRequest returning the json response from the twitter REST API.
-    fn exec(&self) -> Result<String,String> {
-        let data_string = get_data_string(&self.parameters);
-        let authorization_header = self.oauth_config.get_authorization_header(&self.parameters, "GET", self.uri);
+    pub fn send(&self) -> Result<(Box<Read+Send>,u16),String> {
+        let body = self.get_body();
+        let authorization_header = self.get_authorization_header();
 
-        //send http get message
         let client = Client::new();
-        let mut res = client.get(&format!("{}?{}", self.uri, data_string)[..])
-            .header(Authorization(authorization_header))
-            .send().unwrap();
-
-        //read body
-        let mut body = String::new();
-        res.read_to_string(&mut body).unwrap();
-
-        //check status code of http response
-        if res.status != StatusCode::Ok {
-            return Err(format!("http response has code '{:?}' and body '{}'", res.status, body));
-        }
-
-        Ok(body)
-    }
-}
-
-/// Struct representing an HTTP POST request
-pub struct PostRequest<'a> {
-    uri: &'a str,
-    parameters: BTreeMap<String,String>,
-    oauth_config: OAuthConfig,
-}
-
-impl<'a> PostRequest<'a> {
-    /// Creates a new PostRequest struct
-    pub fn new(uri: &str, parameters: BTreeMap<String,String>, oauth_config: OAuthConfig) -> PostRequest {
-        PostRequest {
-            uri: uri,
-            parameters: parameters,
-            oauth_config: oauth_config,
-        }
-    }
-}
-
-impl<'a> BluebirdRequest<String> for PostRequest<'a> {
-    /// Executes the PostRequest returning the json response from the twitter REST API.
-    fn exec(&self) -> Result<String,String> {
-        let data_string = get_data_string(&self.parameters);
-        let authorization_header = self.oauth_config.get_authorization_header(&self.parameters, "POST", self.uri);
-
-        //send http post message
-        let client = Client::new();
-        let mut res = client.post(self.uri)
-            .header(Authorization(authorization_header))
-            .header(ContentType::form_url_encoded())
-            .body(&data_string[..])
-            .send().unwrap();
-
-        //read body
-        let mut body = String::new();
-        res.read_to_string(&mut body).unwrap();
-
-        //check status code of http response
-        if res.status != StatusCode::Ok {
-            return Err(format!("http response has code '{:?}' and body '{}'", res.status, body));
-        }
-
-        Ok(body)
-    }
-}
-
-/// Struct used to issue a filter stream request
-pub struct StreamRequest<'a> {
-    uri: &'a str,
-    parameters: BTreeMap<String,String>,
-    oauth_config: OAuthConfig,
-}
-
-impl<'a> StreamRequest<'a> {
-    /// Creates a new StreamRequest struct
-    pub fn new(uri: &str, parameters: BTreeMap<String,String>, oauth_config: OAuthConfig) -> StreamRequest {
-        StreamRequest {
-            uri: uri,
-            parameters: parameters,
-            oauth_config: oauth_config,
-        }
-    }
-}
-
-impl<'a> BluebirdRequest<Receiver<String>> for StreamRequest<'a> {
-    /// Executes the StreamRequest returning a channel that recieves individual tweets (in json)
-    /// that are returned from the twitter REST API.
-    fn exec(&self) -> Result<Receiver<String>,String> {
-        let data_string = get_data_string(&self.parameters);
-        let authorization_header = self.oauth_config.get_authorization_header(&self.parameters, "POST", self.uri);
-
-        //send http post message
-        let client = Client::new();
-        let mut res = client.post(self.uri)
-            .header(Authorization(authorization_header))
-            .header(ContentType::form_url_encoded())
-            .body(&data_string[..])
-            .send().unwrap();
-
-        //check status code of http response
-        if res.status != StatusCode::Ok {
-            let mut body = String::new();
-            res.read_to_string(&mut body).unwrap();
-
-            return Err(format!("http response has code '{:?}' and body '{}'", res.status, body));
-        }
-
-        let (tx, rx) = channel::<String>();
-        thread::spawn(move || {
-            let mut buffer = String::new();
-            let mut reader = BufReader::new(res.by_ref());
-
-            loop {
-                //read number of bytes in tweet
-                loop {
-                    match reader.read_line(&mut buffer) {
-                        Ok(bytes) => {
-                            if bytes != 0 {
-                                break;
-                            }
-                        },
-                        Err(e) => panic!("{}", e),
-                    }
-                }
-
-                //parse string into unsigned 32 bit integer
-                let mut remaining_bytes = buffer.trim().parse::<u32>().unwrap();
-                buffer.clear();
-
-                //read tweet bytes
-                let mut tweet = String::new();
-                while remaining_bytes > 0 {
-                    match reader.read_line(&mut tweet) {
-                        Ok(bytes) => remaining_bytes -= bytes as u32,
-                        Err(e) => panic!("{}", e),
-                    }
-                }
-
-                tx.send(tweet).unwrap();
+        let res = match self.method {
+            HttpMethod::Get => {
+                client.get(&format!("{}?{}", self.uri, body))
+                    .header(Authorization(authorization_header))
+                    .send().unwrap()
+            },
+            HttpMethod::Head => {
+                unimplemented!()
+            },
+            HttpMethod::Post => {
+                client.post(self.uri)
+                    .header(Authorization(authorization_header))
+                    .header(ContentType::form_url_encoded())
+                    .body(&body)
+                    .send().unwrap()
             }
-        });
+        };
 
-        Ok(rx)
+        let status_code = res.status_raw().0;
+        Ok((Box::new(res), status_code))
     }
-}
 
-/// Returns a '&' delimited list of key value pairs for entries in a BTreeMap.
-fn get_data_string(parameters: &BTreeMap<String,String>) -> String {
-    let mut data_string = String::new();
-    for (i, (key, value)) in parameters.iter().enumerate() {
-        if i != 0 {
-            data_string.push_str("&");
+    fn get_body(&self) -> String {
+        let mut data_string = String::new();
+        for (i, (key, value)) in self.parameters.iter().enumerate() {
+            if i != 0 {
+                data_string.push_str("&");
+            }
+
+            data_string.push_str(&format!("{}={}", key, percent_encode(value))[..]);
         }
 
-        data_string.push_str(&format!("{}={}", key, percent_encode(value.clone()))[..]);
+        data_string
     }
 
-    data_string
+    fn get_authorization_header(&self) -> String {
+        format!("OAuth \
+            oauth_consumer_key=\"{}\", \
+            oauth_nonce=\"{}\", \
+            oauth_signature=\"{}\", \
+            oauth_signature_method=\"HMAC-SHA1\", \
+            oauth_timestamp=\"{}\", \
+            oauth_token=\"{}\", \
+            oauth_version=\"1.0\"", 
+            percent_encode(self.consumer_key),
+            self.nonce,
+            percent_encode(&self.get_oauth_signature()),
+            self.timestamp,
+            percent_encode(self.access_token),
+        )
+    }
+
+    fn get_oauth_signature(&self) -> String {
+        let mut map = BTreeMap::new();
+        for (key, value) in self.parameters.iter() {
+            map.insert(*key, percent_encode(value));
+        }
+
+        map.insert("oauth_consumer_key", self.consumer_key.to_string());
+        map.insert("oauth_nonce", self.nonce.clone());
+        map.insert("oauth_signature_method", "HMAC-SHA1".to_string());
+        map.insert("oauth_timestamp", self.timestamp.to_string());
+        map.insert("oauth_token", self.access_token.to_string());
+        map.insert("oauth_version", "1.0".to_string());
+
+        let mut parameter_string = String::new();
+        for (key, value) in map.iter() {
+            parameter_string.push_str(&format!("&{}={}", key, value));
+        }
+
+        let signature_base_string = match self.method {
+            HttpMethod::Get => format!("{}&{}&{}", "GET", percent_encode(self.uri), percent_encode(&parameter_string[1..])),
+            HttpMethod::Head => format!("{}&{}&{}", "HEAD", percent_encode(self.uri), percent_encode(&parameter_string[1..])),
+            HttpMethod::Post => format!("{}&{}&{}", "POST", percent_encode(self.uri), percent_encode(&parameter_string[1..])),
+        };
+        let signing_key = format!("{}&{}", percent_encode(self.consumer_secret), percent_encode(self.access_token_secret));
+
+        let mut hmac = Hmac::new(Sha1::new(), &signing_key.into_bytes());
+        hmac.input(&signature_base_string.into_bytes());
+        hmac.result().code().to_base64(base64::STANDARD)
+    }
 }
+
+fn percent_encode<'a>(value: &'a str) -> String {
+    value.chars().map(|x| {
+        match x {
+            '0'...'9' | 'A'...'Z' | 'a'...'z' | '-' | '.' | '_' | '~' => format!("{}", x),
+            _ => format!("%{:X}", x as u8),
+        }
+    }).collect()
+}
+

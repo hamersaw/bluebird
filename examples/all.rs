@@ -1,6 +1,5 @@
 extern crate bluebird;
 use bluebird::Client;
-use bluebird::request::BluebirdRequest;
 
 use std::io;
 
@@ -18,52 +17,44 @@ fn main() {
     println!("enter access token secret:");
     let _ = io::stdin().read_line(&mut access_token_secret).unwrap();
 
-    let client = Client::new(
-        consumer_key.trim().to_string(),
-        consumer_secret.trim().to_string(),
-        access_token.trim().to_string(),
-        access_token_secret.trim().to_string()
-    );
+    let client = Client::new(consumer_key.trim(), consumer_secret.trim(), access_token.trim(), access_token_secret.trim());
 
-    //USER
-    match client.lookup_users(Some("twitterapi,twitter".to_string()), None).exec() {
+    match client.home_timeline(Some("5"), None, None) {
         Ok(json) => println!("{}", json),
         Err(e) => panic!("{}", e),
     }
 
-    match client.search_users("twitterapi".to_string(), None, None).exec() {
+    match client.lookup_users(Some("twitterapi,twitter"), None) {
         Ok(json) => println!("{}", json),
         Err(e) => panic!("{}", e),
     }
 
-    match client.show_user(None, Some("twitterapi".to_string())).exec() {
-        Ok(json) => println!("{}", json),
-        Err(e) => panic!("{}", e),
-    }
-
-    //STATUS
-    match client.home_timeline(Some("10".to_string()), None, None).exec() {
-        Ok(json) => println!("{}", json),
-        Err(e) => panic!("{}", e),
-    }
-
-    match client.update_status("Testing the rust twitter api \"bluebird\" (https://github.com/hamersaw/bluebird)".to_string()).exec() {
-        Ok(json) => println!("{}", json),
-        Err(e) => panic!("{}", e),
-    }
-
-    match client.user_timeline(None, Some("twitterapi".to_string()), Some("10".to_string()), None, None).exec() {
-        Ok(json) => println!("{}", json),
-        Err(e) => panic!("{}", e),
-    }
-
-    //STREAM
-    match client.open_filter_stream(None, Some("twitter".to_string()), None).exec() {
+    match client.open_filter_stream(None, Some("twitter"), None) {
         Ok(rx) => {
             while let Ok(tweet) = rx.recv() {
                 println!("{}", tweet);
             }
         },
+        Err(e) => panic!("{}", e),
+    }
+
+    match client.search_users("twitterapi", None, None) {
+        Ok(json) => println!("{}", json),
+        Err(e) => panic!("{}", e),
+    }
+
+    match client.show_user(Some("twitterapi"), None) {
+        Ok(json) => println!("{}", json),
+        Err(e) => panic!("{}", e),
+    }
+
+    match client.update_status("Testing the rust twitter api \"bluebird\" (https://github.com/hamersaw/bluebird)") {
+        Ok(json) => println!("{}", json),
+        Err(e) => panic!("{}", e),
+    }
+
+    match client.user_timeline(Some("twitterapi"), None, Some("5"), None, None) {
+        Ok(json) => println!("{}", json),
         Err(e) => panic!("{}", e),
     }
 }
