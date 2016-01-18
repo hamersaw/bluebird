@@ -1,5 +1,5 @@
 extern crate bluebird;
-use bluebird::client::Client;
+use bluebird::Client;
 use bluebird::request::BluebirdRequest;
 
 use std::io;

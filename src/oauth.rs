@@ -10,6 +10,7 @@ use crypto::mac::Mac;
 use crypto::sha1::Sha1;
 use rustc_serialize::base64::{self,ToBase64};
 
+/// Struct used to store OAuth tokens and secrets
 #[derive(Clone)]
 pub struct OAuthConfig {
     consumer_key: String,
@@ -19,6 +20,17 @@ pub struct OAuthConfig {
 }
 
 impl OAuthConfig {
+    /// Creates a new OAuthConfig struct
+    ///
+    /// # Examples
+    /// ```
+    /// let oauth_config = OAuthConfig::new(
+    ///     "consumer_key".to_string(),
+    ///     "consumer_secret".to_string(),
+    ///     "access_token".to_string(),
+    ///     "access_token_secret".to_string(),
+    /// );
+    /// ```
     pub fn new(consumer_key: String, consumer_secret: String, access_token: String, access_token_secret: String) -> OAuthConfig {
         OAuthConfig {
             consumer_key: consumer_key,
@@ -28,6 +40,23 @@ impl OAuthConfig {
         }
     }
 
+    /// Gets the OAuth authorization header string required by the twitter REST API.
+    ///
+    /// # Examples
+    /// ```
+    /// let screen_name = Some("twitterapi");
+    /// let mut parameters = BTreeMap::new();
+    /// insert_on_some("screen_name", screen_name, &mut parameters).unwrap();
+    ///
+    /// let oauth_config = OAuthConfig::new("consumer_key".to_string(), "consumer_secret".to_string(), "access_token".to_string(), "access_token_secret".to_string());
+    ///
+    /// let authorization_header = oauth_config.get_authorization_header(
+    ///     parameters,
+    ///     "POST",
+    ///     "https://api.twitter.com/1.1/users/show.json",
+    /// );
+    ///
+    /// ```
     pub fn get_authorization_header(&self, parameters: &BTreeMap<String,String>, http_request_type: &str, uri: &str) -> String {
         //generate nonce and timestamp
         let nonce = rand::thread_rng().gen_ascii_chars().take(32).collect::<String>();

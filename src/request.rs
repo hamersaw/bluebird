@@ -10,11 +10,12 @@ use hyper::Client;
 use hyper::header::{Authorization,ContentType};
 use hyper::status::StatusCode;
 
-pub trait BluebirdRequest {
-    fn exec(&self) -> Result<String,String>;
+/// Trait requiring an exec() function for bluebird request structs
+pub trait BluebirdRequest<E> {
+    fn exec(&self) -> Result<E,String>;
 }
 
-//GET REQUEST
+/// Struct representing an HTTP GET request
 pub struct GetRequest<'a> {
     uri: &'a str,
     parameters: BTreeMap<String,String>,
@@ -22,6 +23,7 @@ pub struct GetRequest<'a> {
 }
 
 impl<'a> GetRequest<'a> {
+    /// Creates a new GetRequest struct
     pub fn new(uri: &str, parameters: BTreeMap<String,String>, oauth_config: OAuthConfig) -> GetRequest {
         GetRequest {
             uri: uri,
@@ -31,7 +33,8 @@ impl<'a> GetRequest<'a> {
     }
 }
 
-impl<'a> BluebirdRequest for GetRequest<'a> {
+impl<'a> BluebirdRequest<String> for GetRequest<'a> {
+    /// Executes the GetRequest returning the json response from the twitter REST API.
     fn exec(&self) -> Result<String,String> {
         let data_string = get_data_string(&self.parameters);
         let authorization_header = self.oauth_config.get_authorization_header(&self.parameters, "GET", self.uri);
@@ -55,7 +58,7 @@ impl<'a> BluebirdRequest for GetRequest<'a> {
     }
 }
 
-//POST REQUEST
+/// Struct representing an HTTP POST request
 pub struct PostRequest<'a> {
     uri: &'a str,
     parameters: BTreeMap<String,String>,
@@ -63,6 +66,7 @@ pub struct PostRequest<'a> {
 }
 
 impl<'a> PostRequest<'a> {
+    /// Creates a new PostRequest struct
     pub fn new(uri: &str, parameters: BTreeMap<String,String>, oauth_config: OAuthConfig) -> PostRequest {
         PostRequest {
             uri: uri,
@@ -72,7 +76,8 @@ impl<'a> PostRequest<'a> {
     }
 }
 
-impl<'a> BluebirdRequest for PostRequest<'a> {
+impl<'a> BluebirdRequest<String> for PostRequest<'a> {
+    /// Executes the PostRequest returning the json response from the twitter REST API.
     fn exec(&self) -> Result<String,String> {
         let data_string = get_data_string(&self.parameters);
         let authorization_header = self.oauth_config.get_authorization_header(&self.parameters, "POST", self.uri);
@@ -98,7 +103,7 @@ impl<'a> BluebirdRequest for PostRequest<'a> {
     }
 }
 
-//STREAM REQUEST
+/// Struct used to issue a filter stream request
 pub struct StreamRequest<'a> {
     uri: &'a str,
     parameters: BTreeMap<String,String>,
@@ -106,6 +111,7 @@ pub struct StreamRequest<'a> {
 }
 
 impl<'a> StreamRequest<'a> {
+    /// Creates a new StreamRequest struct
     pub fn new(uri: &str, parameters: BTreeMap<String,String>, oauth_config: OAuthConfig) -> StreamRequest {
         StreamRequest {
             uri: uri,
@@ -113,8 +119,12 @@ impl<'a> StreamRequest<'a> {
             oauth_config: oauth_config,
         }
     }
+}
 
-    pub fn exec(&self) -> Result<Receiver<String>,String> {
+impl<'a> BluebirdRequest<Receiver<String>> for StreamRequest<'a> {
+    /// Executes the StreamRequest returning a channel that recieves individual tweets (in json)
+    /// that are returned from the twitter REST API.
+    fn exec(&self) -> Result<Receiver<String>,String> {
         let data_string = get_data_string(&self.parameters);
         let authorization_header = self.oauth_config.get_authorization_header(&self.parameters, "POST", self.uri);
 
@@ -173,6 +183,7 @@ impl<'a> StreamRequest<'a> {
     }
 }
 
+/// Returns a '&' delimited list of key value pairs for entries in a BTreeMap.
 fn get_data_string(parameters: &BTreeMap<String,String>) -> String {
     let mut data_string = String::new();
     for (i, (key, value)) in parameters.iter().enumerate() {

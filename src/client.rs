@@ -3,6 +3,7 @@ use request::{GetRequest,PostRequest,StreamRequest};
 
 use std::collections::BTreeMap;
 
+/// Client struct used to issue twitter REST API requests
 pub struct Client {
     oauth_config: OAuthConfig,
 }
@@ -31,7 +32,7 @@ impl Client {
     ///
     /// # Examples
     /// ```
-    /// match client.lookup_users(Some("twitterapi,twitter"), None) {
+    /// match client.lookup_users(Some("twitterapi,twitter".to_string()), None).exec() {
     ///     Ok(json) => println!("{}", json),
     ///     Err(e) => panic!("{}", e),
     /// }
@@ -50,7 +51,7 @@ impl Client {
     ///
     /// # Examples
     /// ```
-    /// match client.search_users(Some("twitterapi"), None, None) {
+    /// match client.search_users(Some("twitterapi".to_string()), None, None).exec() {
     ///     Ok(json) => println!("{}", json),
     ///     Err(e) => panic!("{}", e),
     /// }
@@ -69,7 +70,7 @@ impl Client {
     ///
     /// # Examples
     /// ```
-    /// match client.show_users(Some("twitterapi"), None) {
+    /// match client.show_users(Some("twitterapi".to_string()), None).exec() {
     ///     Ok(json) => println!("{}", json),
     ///     Err(e) => panic!("{}", e),
     /// }
@@ -88,7 +89,7 @@ impl Client {
     ///
     /// # Examples
     /// ```
-    /// match client.home_timeline(Some("10".to_string()), None, None) {
+    /// match client.home_timeline(Some("10".to_string()), None, None).exec() {
     ///     Ok(json) => println!("{}", json),
     ///     Err(e) => panic!("{}", e),
     /// }
@@ -166,6 +167,14 @@ impl Client {
     }
 }
 
+/// If value is `Some(x)` then insert key value pair into BTreeMap.
+///
+/// # Examples
+/// ```
+/// let screen_name = Some("twitterapi");
+/// let mut parameters = BTreeMap::new();
+/// insert_on_some("screen_name", screen_name, &mut parameters).unwrap();
+/// ```
 fn insert_on_some(key: &str, value: Option<String>, map: &mut BTreeMap<String,String>) -> Result<(),String> {
     if let Some(value) = value {
         map.insert(key.to_string(), value);
