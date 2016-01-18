@@ -86,13 +86,8 @@ impl<'a> Client<'a> {
             loop {
                 //read number of bytes in tweet
                 loop {
-                    match reader.read_line(&mut buffer) {
-                        Ok(bytes) => {
-                            if bytes != 0 {
-                                break;
-                            }
-                        },
-                        Err(e) => panic!("{}", e),
+                    if reader.read_line(&mut buffer).ok().expect("unable to read number of bytes from filter stream") != 0 {
+                        break;
                     }
                 }
 
@@ -103,10 +98,8 @@ impl<'a> Client<'a> {
                 //read tweet bytes
                 let mut tweet = String::new();
                 while remaining_bytes > 0 {
-                    match reader.read_line(&mut tweet) {
-                        Ok(bytes) => remaining_bytes -= bytes as u32,
-                        Err(e) => panic!("{}", e),
-                    }
+                    let bytes = reader.read_line(&mut tweet).ok().expect("unable to read tweet from filter stream");
+                    remaining_bytes -= bytes as u32;
                 }
 
                 tx.send(tweet).unwrap();
