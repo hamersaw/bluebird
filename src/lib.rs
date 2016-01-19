@@ -31,45 +31,27 @@ impl<'a> Client<'a> {
 
     pub fn home_timeline(&self, count: Option<&'a str>, since_id: Option<&'a str>, max_id: Option<&'a str>) -> Result<String,String> {
         let mut parameters = BTreeMap::new();
-        insert_on_some("count", count, &mut parameters).unwrap();
-        insert_on_some("since_id", since_id, &mut parameters).unwrap();
-        insert_on_some("max_id", max_id, &mut parameters).unwrap();
+        multiple_insert(&mut parameters, &[("count", count), ("since_id", since_id), ("max_id", max_id)]).unwrap();
 
-        let http_request = self.new_http_request("https://api.twitter.com/1.1/statuses/home_timeline.json", HttpMethod::Get, parameters);
-        let (mut reader, status_code) = http_request.send().ok().expect("failed to send home timeline statuses http request");
-        let mut body = String::new();
-        reader.read_to_string(&mut body).unwrap();
-
-        if status_code != 200 {
-            return Err(format!("HTTP status code '{}' and body '{}'", status_code, body));
-        }
-        Ok(body)
+        self.send_http_request("https://api.twitter.com/1.1/statuses/home_timeline.json", HttpMethod::Get, parameters)
     }
 
     pub fn lookup_users(&self, screen_name: Option<&'a str>, user_id: Option<&'a str>) -> Result<String,String> {
         let mut parameters = BTreeMap::new();
-        insert_on_some("screen_name", screen_name, &mut parameters).unwrap();
-        insert_on_some("user_id", user_id, &mut parameters).unwrap();
+        multiple_insert(&mut parameters, &[("screen_name", screen_name), ("user_id", user_id)]).unwrap();
 
-        let http_request = self.new_http_request("https://api.twitter.com/1.1/users/lookup.json", HttpMethod::Post, parameters);
-        let (mut reader, status_code) = http_request.send().ok().expect("failed to send lookup user http request");
-        let mut body = String::new();
-        reader.read_to_string(&mut body).unwrap();
-
-        if status_code != 200 {
-            return Err(format!("HTTP status code '{}' and body '{}'", status_code, body));
-        }
-        Ok(body)
+        self.send_http_request("https://api.twitter.com/1.1/users/lookup.json", HttpMethod::Post, parameters)
     }
 
     pub fn open_filter_stream(&self, follow: Option<&'a str>, track: Option<&'a str>, locations: Option<&'a str>) -> Result<Receiver<String>,String> {
         let mut parameters = BTreeMap::new();
-        parameters.insert("delimited", "length");
-        insert_on_some("follow", follow, &mut parameters).unwrap();
-        insert_on_some("track", track, &mut parameters).unwrap();
-        insert_on_some("locations", locations, &mut parameters).unwrap();
+        multiple_insert(&mut parameters, &[("delimited", Some("length")), ("follow", follow), ("track", track), ("locations", locations)]).unwrap();
 
-        let http_request = self.new_http_request("https://stream.twitter.com/1.1/statuses/filter.json", HttpMethod::Post, parameters);
+        let http_request = HttpRequest::new(
+            "https://stream.twitter.com/1.1/statuses/filter.json",
+            HttpMethod::Post,
+            parameters,
+            self.consumer_key, self.consumer_secret, self.access_token, self.access_token_secret);
         let (mut reader, status_code) = http_request.send().ok().expect("failed to send statuses filter http request");
 
         if status_code != 200 {
@@ -111,63 +93,36 @@ impl<'a> Client<'a> {
 
     pub fn search_users(&self, q: &'a str, page: Option<&'a str>, count: Option<&'a str>) -> Result<String,String> {
         let mut parameters = BTreeMap::new();
-        parameters.insert("q", q);
-        insert_on_some("page", page, &mut parameters).unwrap();
-        insert_on_some("count", count, &mut parameters).unwrap();
+        multiple_insert(&mut parameters, &[("q", Some(q)), ("page", page), ("count", count)]).unwrap();
 
-        let http_request = self.new_http_request("https://api.twitter.com/1.1/users/search.json", HttpMethod::Get, parameters);
-        let (mut reader, status_code) = http_request.send().ok().expect("failed to send search user http request");
-        let mut body = String::new();
-        reader.read_to_string(&mut body).unwrap();
-
-        if status_code != 200 {
-            return Err(format!("HTTP status code '{}' and body '{}'", status_code, body));
-        }
-        Ok(body)
+        self.send_http_request("https://api.twitter.com/1.1/users/search.json", HttpMethod::Get, parameters)
     }
 
 
     pub fn show_user(&self, screen_name: Option<&'a str>, user_id: Option<&'a str>) -> Result<String,String> {
         let mut parameters = BTreeMap::new();
-        insert_on_some("screen_name", screen_name, &mut parameters).unwrap();
-        insert_on_some("user_id", user_id, &mut parameters).unwrap();
+        multiple_insert(&mut parameters, &[("screen_name", screen_name), ("user_id", user_id)]).unwrap();
 
-        let http_request = self.new_http_request("https://api.twitter.com/1.1/users/show.json", HttpMethod::Get, parameters);
-        let (mut reader, status_code) = http_request.send().ok().expect("failed to send show user http request");
-        let mut body = String::new();
-        reader.read_to_string(&mut body).unwrap();
-
-        if status_code != 200 {
-            return Err(format!("HTTP status code '{}' and body '{}'", status_code, body));
-        }
-        Ok(body)
+        self.send_http_request("https://api.twitter.com/1.1/users/show.json", HttpMethod::Get, parameters)
     }
 
     pub fn update_status(&self, status: &'a str) -> Result<String,String> {
         let mut parameters = BTreeMap::new();
         parameters.insert("status", status);
 
-        let http_request = self.new_http_request("https://api.twitter.com/1.1/statuses/update.json", HttpMethod::Post, parameters);
-        let (mut reader, status_code) = http_request.send().ok().expect("failed to send update status http request");
-        let mut body = String::new();
-        reader.read_to_string(&mut body).unwrap();
-
-        if status_code != 200 {
-            return Err(format!("HTTP status code '{}' and body '{}'", status_code, body));
-        }
-        Ok(body)
+        self.send_http_request("https://api.twitter.com/1.1/statuses/update.json", HttpMethod::Post, parameters)
     }
 
     pub fn user_timeline(&self, screen_name: Option<&'a str>, user_id: Option<&'a str>, count: Option<&'a str>, since_id: Option<&'a str>, max_id: Option<&'a str>) -> Result<String,String> {
         let mut parameters = BTreeMap::new();
-        insert_on_some("screen_name", screen_name, &mut parameters).unwrap();
-        insert_on_some("user_id", user_id, &mut parameters).unwrap();
-        insert_on_some("count", count, &mut parameters).unwrap();
-        insert_on_some("since_id", since_id, &mut parameters).unwrap();
-        insert_on_some("max_id", max_id, &mut parameters).unwrap();
+        multiple_insert(&mut parameters, &[("screen_name", screen_name), ("user_id", user_id), ("count", count), ("since_id", since_id), ("max_id", max_id)]).unwrap();
 
-        let http_request = self.new_http_request("https://api.twitter.com/1.1/statuses/user_timeline.json", HttpMethod::Get, parameters);
-        let (mut reader, status_code) = http_request.send().ok().expect("failed to send user timeline statuses http request");
+        self.send_http_request("https://api.twitter.com/1.1/statuses/user_timeline.json", HttpMethod::Get, parameters)
+    }
+
+    fn send_http_request(&self, uri: &'a str, method: HttpMethod, parameters: BTreeMap<&'a str,&'a str>) -> Result<String,String> {
+        let http_request = HttpRequest::new(uri, method, parameters, self.consumer_key, self.consumer_secret, self.access_token, self.access_token_secret);
+        let (mut reader, status_code) = http_request.send().ok().expect("failed to http request from bluebird client");
         let mut body = String::new();
         reader.read_to_string(&mut body).unwrap();
 
@@ -176,15 +131,13 @@ impl<'a> Client<'a> {
         }
         Ok(body)
     }
-
-    fn new_http_request(&self, uri: &'a str, method: HttpMethod, parameters: BTreeMap<&'a str,&'a str>) -> HttpRequest {
-        HttpRequest::new(uri, method, parameters, self.consumer_key, self.consumer_secret, self.access_token, self.access_token_secret)
-    }
 }
 
-fn insert_on_some<'a>(key: &'a str, value: Option<&'a str>, parameters: &mut BTreeMap<&'a str,&'a str>) -> Result<(),String> {
-    if let Some(value) = value {
-        parameters.insert(key, value);
+fn multiple_insert<'a>(map: &mut BTreeMap<&'a str,&'a str>, key_value_pairs: &[(&'a str, Option<&'a str>)]) -> Result<(),String> {
+    for entry in key_value_pairs {
+        if let Some(value) = entry.1 {
+            map.insert(entry.0, value);
+        }
     }
 
     Ok(())

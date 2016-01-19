@@ -24,7 +24,7 @@ fn main() {
         Err(e) => panic!("{}", e),
     }
 
-    match client.lookup_users(Some("twitterapi,twitter"), None) {
+    /*match client.lookup_users(Some("twitterapi,twitter"), None) {
         Ok(json) => println!("{}", json),
         Err(e) => panic!("{}", e),
     }
@@ -56,5 +56,5 @@ fn main() {
     match client.user_timeline(Some("twitterapi"), None, Some("5"), None, None) {
         Ok(json) => println!("{}", json),
         Err(e) => panic!("{}", e),
-    }
+    }*/
 }
