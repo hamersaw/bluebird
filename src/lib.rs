@@ -125,6 +125,7 @@ impl<'a> Client<'a> {
         let (mut reader, status_code) = http_request.send().ok().expect("failed to http request from bluebird client");
         let mut body = String::new();
         reader.read_to_string(&mut body).unwrap();
+        drop(reader);
 
         if status_code != 200 {
             return Err(format!("HTTP status code '{}' and body '{}'", status_code, body));
