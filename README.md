@@ -18,11 +18,5 @@ I would be happy to implement them.
 ##Examples
 See examples folder.
 
-Now available as crate!
-```toml
-[dependencies]
-bluebird = "*"
-```
-
 ##TODO
 - continue filling out twitter REST API functionality
