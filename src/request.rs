@@ -1,4 +1,4 @@
-use crypto::digest::Digest;
+//use crypto::digest::Digest;
 use crypto::hmac::Hmac;
 use crypto::mac::Mac;
 use crypto::sha1::Sha1;
